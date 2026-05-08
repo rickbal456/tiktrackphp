@@ -1,60 +1,95 @@
-# TikTrack (PHP)
+# TikTrack PHP
 
-Native PHP 8.3 rewrite of the TikTok Conversion Manager: dashboard, TikTok pixel configs, conversions (CSV + send to Events API 2.0), landing pages with cascading redirects, custom domains (DNS verify), profile, roles.
+TikTrack PHP adalah aplikasi tracking konversi TikTok berbasis native PHP (tanpa framework) untuk mengelola konfigurasi pixel, event conversion, landing page redirect, custom domain, dan manajemen user/role.
 
-## Requirements
+## Highlights
 
-- PHP 8.2+ with extensions: `pdo_mysql`, `json`, `curl`, `mbstring`
-- MySQL 8.0 / MariaDB 10.6+
-- Apache `mod_rewrite` with `DocumentRoot` pointing to `public/`
-- Composer (for PSR-4 autoload only)
+- Native PHP 8.2+ + PDO + MySQL 8 (tanpa Laravel/Symfony)
+- Dashboard admin/user untuk monitoring conversion
+- Integrasi TikTok Events API (`/open_api/v1.3/event/track/`)
+- Landing page builder dengan slug siap iklan dan copy link
+- Role management (admin dapat membuat user/admin)
+- Custom domain verification + mapping ke landing page
 
-## Quick start (Docker)
+## Tech Stack
+
+- PHP 8.2+
+- MySQL 8.0
+- Apache (`mod_rewrite`, `DocumentRoot` ke `public/`)
+- Tailwind Play CDN (tanpa build Node)
+- Docker Compose (opsional, direkomendasikan)
+
+## Quick Start (Docker) — Recommended
 
 ```bash
-cd tiktrack-php
 cp .env.example .env
-# Edit .env: DB_HOST=mysql DB_PORT=3306 APP_URL=http://localhost:8080
+# Pastikan untuk mode Docker:
+# DB_HOST=mysql
+# DB_PORT=3306
+# APP_URL=http://localhost:8080
+
 docker compose up -d --build
 docker compose exec app composer install
 docker compose exec app php database/migrate.php
 docker compose exec app php database/seed.php
 ```
 
-Open **http://localhost:8080** — default admin: `admin@tiktrack.local` / `admin123`.
+Akses aplikasi:
 
-Inside the app container, MySQL host is `mysql` and port `3306`. On the host machine, MySQL is exposed at `127.0.0.1:3308`.
+- App: http://localhost:8080
+- MySQL host machine: `127.0.0.1:3308`
 
-## Quick start (XAMPP)
+Default admin:
 
-1. Clone/copy project to `htdocs/tiktrack-php`.
-2. `cp .env.example .env` — set `DB_HOST=127.0.0.1`, `DB_PORT=3306` (or your MySQL port), `DB_NAME=tiktrack_php`, `APP_URL=http://localhost/tiktrack-php/public` (adjust to your vhost).
-3. `composer install`
-4. `php database/migrate.php` then `php database/seed.php`
-5. Point Apache `DocumentRoot` at `tiktrack-php/public` or browse `http://localhost/tiktrack-php/public/`.
+- Email: `admin@tiktrack.local`
+- Password: `admin123`
 
-## Environment
+## Quick Start (Local / XAMPP)
 
-See [.env.example](.env.example). Important:
+```bash
+cp .env.example .env
+composer install
+php database/migrate.php
+php database/seed.php
+```
 
-| Variable | Purpose |
-|----------|---------|
-| `APP_URL` | Base URL for redirects and LP URL builder |
-| `SAAS_BASE_DOMAINS` | Comma-separated hosts treated as SaaS (not custom domains) |
-| `DOMAIN_VERIFY_VPS_IP` | Expected A record IP for domain verification |
-| `DOMAIN_VERIFY_LOCAL_MODE` | `true` skips A-record check (local/LAN only) |
-| `NEXT_PUBLIC_DOMAIN_VERIFY_LOCAL_MODE` | Shown in UI (Tailwind) |
-| `NEXT_PUBLIC_VPS_IP` | Shown to users in domain instructions |
-| `NEXT_PUBLIC_CUSTOM_DOMAIN_SCHEME` | `http` or `https` for copied LP URLs (optional) |
+Set `.env` untuk local (contoh):
 
-## Tailwind
+- `DB_HOST=127.0.0.1`
+- `DB_PORT=3306`
+- `DB_NAME=tiktrack_php`
+- `DB_USER=root`
+- `DB_PASSWORD=...`
+- `APP_URL=http://localhost/tiktrack-php/public`
 
-This project uses the **Tailwind Play CDN** in layouts (no Node build).
+Pastikan Apache `DocumentRoot` mengarah ke folder `public/`.
 
-## TikTok Events API
+## Environment Variables Penting
 
-Endpoint: `POST https://business-api.tiktok.com/open_api/v1.3/event/track/`
+Lihat file `.env.example`. Variabel utama:
+
+- `APP_URL`: base URL aplikasi untuk redirect/link builder
+- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`: koneksi database
+- `SAAS_BASE_DOMAINS`: daftar domain SaaS internal (comma-separated)
+- `DOMAIN_VERIFY_VPS_IP`: IP target verifikasi domain
+- `DOMAIN_VERIFY_LOCAL_MODE`: `true` untuk skip A-record check saat local
+- `NEXT_PUBLIC_CUSTOM_DOMAIN_SCHEME`: `http` / `https` untuk format copy link domain
+
+## Struktur Penting
+
+- `public/index.php` — front controller
+- `app/Controllers` — business logic per fitur
+- `app/Views` — UI server-rendered
+- `routes/web.php` — route mapping
+- `database/migrations` — SQL schema
+- `database/seed.php` — seed data awal
+
+## Troubleshooting Singkat
+
+- **Blank/fatal saat login atau dashboard**: cek log container (`docker compose logs app`) dan pastikan migrasi + seed sudah dijalankan.
+- **DB connection refused di Docker**: pastikan `.env` memakai `DB_HOST=mysql` dan `DB_PORT=3306`.
+- **Route tidak terbaca**: pastikan akses lewat `public/` dan `mod_rewrite` aktif.
 
 ## License
 
-Private / PT Goami Bagjatama Indonesia.
+Private — PT Goami Bagjatama Indonesia.
