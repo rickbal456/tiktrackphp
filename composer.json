@@ -1,0 +1,17 @@
+{
+  "name": "tiktrack/tiktrack-php",
+  "description": "TikTrack — TikTok Conversion Manager (PHP)",
+  "type": "project",
+  "license": "proprietary",
+  "require": {
+    "php": ">=8.2"
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "app/"
+    }
+  },
+  "config": {
+    "sort-packages": true
+  }
+}

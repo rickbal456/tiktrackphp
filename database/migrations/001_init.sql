@@ -1,0 +1,62 @@
+-- TikTrack PHP — init (users, roles, tiktok_configs, conversions)
+
+CREATE TABLE IF NOT EXISTS roles (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  name VARCHAR(191) NOT NULL UNIQUE,
+  description VARCHAR(500) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS users (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  password VARCHAR(255) NOT NULL,
+  role_id CHAR(36) NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS tiktok_configs (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  user_id CHAR(36) NOT NULL,
+  access_token TEXT NOT NULL,
+  pixel_id VARCHAR(255) NOT NULL,
+  event_name VARCHAR(191) NOT NULL DEFAULT 'CompletePayment',
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_tiktok_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS conversions (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  user_id CHAR(36) NOT NULL,
+  config_id CHAR(36) NOT NULL,
+  event_name VARCHAR(191) NOT NULL,
+  event_time DATETIME(3) NOT NULL,
+  event_id VARCHAR(500) NULL,
+  ttclid TEXT NULL,
+  email VARCHAR(500) NULL,
+  phone VARCHAR(500) NULL,
+  external_id VARCHAR(500) NULL,
+  ip VARCHAR(64) NULL,
+  user_agent TEXT NULL,
+  url TEXT NULL,
+  referrer TEXT NULL,
+  currency VARCHAR(16) NULL,
+  value DOUBLE NULL,
+  content_type VARCHAR(191) NULL,
+  contents JSON NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'pending',
+  response JSON NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_conv_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_conv_config FOREIGN KEY (config_id) REFERENCES tiktok_configs(id) ON DELETE CASCADE,
+  INDEX idx_conversions_user (user_id),
+  INDEX idx_conversions_status (status),
+  INDEX idx_conversions_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
