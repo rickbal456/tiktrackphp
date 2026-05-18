@@ -102,6 +102,20 @@ php database/migrate.php
 php database/seed.php
 ```
 
+> **Penting — PHP CLI vs PHP website.** Folder `vendor/` tidak ikut Git (di-`.gitignore`),
+> jadi `composer install` wajib dijalankan supaya autoloader (`vendor/autoload.php`) ada —
+> tanpa itu muncul error `Class "App\Core\Database" not found`.
+>
+> Jika `php` di terminal masih versi < 8.2, pakai binary PHP milik OpenLiteSpeed
+> (`lsphp82`/`lsphp83`) untuk semua perintah CLI:
+>
+> ```bash
+> export COMPOSER_ALLOW_SUPERUSER=1
+> /usr/local/lsws/lsphp82/bin/php $(which composer) install --no-dev --optimize-autoloader
+> /usr/local/lsws/lsphp82/bin/php database/migrate.php
+> /usr/local/lsws/lsphp82/bin/php database/seed.php
+> ```
+
 Default akun admin:
 
 - Email: `admin@tiktrack.local`
@@ -144,6 +158,73 @@ Jika perlu restart PHP handler juga dari panel/server.
 - Tes buat user dari Role Management
 - Tes copy link LP dan akses link LP
 
+## 12) Custom Domain user (catch-all vHost)
+
+TikTrack adalah SaaS — tiap user bisa memasang **custom domain** sendiri untuk landing page.
+Verifikasi domain di dalam aplikasi (status `verified`) **hanya mengecek DNS**; itu tidak
+otomatis membuat vHost di web server. Tanpa vHost, OpenLiteSpeed tidak mengenali domain
+tersebut dan langsung membalas `404`.
+
+Daripada membuat vHost manual tiap ada domain baru, pakai satu **catch-all vHost**: domain
+apa pun yang belum punya mapping eksplisit akan diarahkan ke vHost aplikasi, lalu `index.php`
+yang menentukan landing page berdasarkan header `Host`.
+
+### Cara pasang
+
+1. Backup config OpenLiteSpeed:
+
+   ```bash
+   cp /usr/local/lsws/conf/httpd_config.conf /usr/local/lsws/conf/httpd_config.conf.bak.$(date +%s)
+   ```
+
+2. Tambahkan mapping `*` (catch-all) ke vHost aplikasi di **semua listener** (port 80, 443,
+   dan 443 IPv6). Ganti `panel.tiktrack.biz.id` dengan domain utama kamu:
+
+   ```bash
+   sed -i '/^  map  *panel\.tiktrack\.biz\.id panel\.tiktrack\.biz\.id$/a\  map                     panel.tiktrack.biz.id *' /usr/local/lsws/conf/httpd_config.conf
+   ```
+
+3. Verifikasi — harus muncul satu baris per listener:
+
+   ```bash
+   grep -n "panel.tiktrack.biz.id \*" /usr/local/lsws/conf/httpd_config.conf
+   ```
+
+4. Tes validitas config, lalu restart:
+
+   ```bash
+   /usr/local/lsws/bin/lshttpd -t
+   systemctl restart lsws
+   ```
+
+5. Tes (bypass Cloudflare, langsung ke OpenLiteSpeed):
+
+   ```bash
+   curl -I -H "Host: domain-user.com" http://127.0.0.1/lp/SLUG
+   ```
+
+   Berhasil jika respons `200 OK` dengan `content-type: text/html` (bukan lagi `404` polos
+   dari `server: LiteSpeed`).
+
+> **Catatan:** CyberPanel bisa menimpa `httpd_config.conf` saat website ditambah/dihapus dari
+> panel. Jika catch-all hilang, jalankan ulang langkah 2. Simpan script berikut di server
+> (mis. `/root/reapply-catchall.sh`) untuk memasang ulang dengan cepat:
+>
+> ```bash
+> #!/bin/bash
+> CONF=/usr/local/lsws/conf/httpd_config.conf
+> cp $CONF $CONF.bak.$(date +%s)
+> grep -q "panel.tiktrack.biz.id \*" $CONF || \
+>   sed -i '/^  map  *panel\.tiktrack\.biz\.id panel\.tiktrack\.biz\.id$/a\  map                     panel.tiktrack.biz.id *' $CONF
+> systemctl restart lsws
+> grep -n "panel.tiktrack.biz.id \*" $CONF
+> ```
+
+> **SSL custom domain:** jika domain user memakai Cloudflare proxy mode **Full**, Cloudflare
+> yang menangani SSL ke browser dan koneksi ke origin tidak divalidasi ketat — sertifikat
+> listener yang ada sudah cukup. Untuk domain tanpa Cloudflare, terbitkan sertifikat per
+> domain (mis. lewat CyberPanel atau `certbot`).
+
 ## Update Deployment (setiap ada perubahan)
 
 ```bash
@@ -157,9 +238,11 @@ systemctl restart lsws
 ## Troubleshooting cepat
 
 - **404 / route tidak jalan**: pastikan domain mengarah ke folder `public`.
-- **DB connection refused**: cek `.env` DB_* dan kredensial database.
+- **DB connection refused**: cek `.env` DB_* dan kredensial database. Untuk install non-Docker pakai `DB_HOST=127.0.0.1` (bukan `mysql`).
 - **403 Forbidden**: cek owner/permission folder project.
 - **SSL tidak keluar**: cek DNS sudah mengarah benar ke IP VPS.
+- **`Class "App\Core\Database" not found`**: `vendor/` belum ada — jalankan `composer install` (lihat catatan di langkah 7).
+- **Custom domain `404` dari `server: LiteSpeed`**: vHost catch-all belum dipasang — lihat bagian 12.
 
 ---
 
